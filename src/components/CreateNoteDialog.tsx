@@ -1,14 +1,46 @@
 'use client';
+import axios from 'axios'
 import React from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
-import { Plus } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
+import { useMutation } from '@tanstack/react-query';
+import {useRouter} from 'next/navigation'
 
 type Props = {}
 
 const CreateNoteDialog = (props: Props) => {
-    const [input, setInput] = React.useState()
+    const router = useRouter()
+    const [input, setInput] = React.useState<string | undefined>("")
+    const createNotebook = useMutation({
+      mutationFn: async () => {
+        const response = await axios.post('/api/createNoteBook', {
+          name: input
+        })
+        return response.data
+      }
+    })
+
+    const handleSubmit = (e: React.FormEvent<HTMLFormElement>)=>{
+      e.preventDefault();
+      if (input === '') {
+        window.alert('Please enter a valid name')
+        return
+      }
+      createNotebook.mutate(undefined, 
+        {
+          onSuccess: ({note_id}) => {
+            console.log("created new note: " + {note_id})
+            router.push(`/notebook/${note_id}`)
+          },
+          onError: (error) => {
+            console.log("failed to create notebook" + error)
+            window.alert("Failed to create new notebook")
+          }
+        })
+    }
+
   return (
     <Dialog>
       <DialogTrigger>
@@ -21,10 +53,10 @@ const CreateNoteDialog = (props: Props) => {
         <DialogHeader>
             <DialogTitle>New Note Book</DialogTitle>
             <DialogDescription>
-              You can create a new note  by clicking the button below.
+              You can create a new note by clicking the button below.
             </DialogDescription>        
         </DialogHeader>
-        <form >
+        <form onSubmit={handleSubmit}>
           <Input 
             value={input} 
             onChange={(e) => setInput(e.target.value)} 
@@ -33,7 +65,12 @@ const CreateNoteDialog = (props: Props) => {
           <div className='h-4'></div>
           <div className="flex items-center gap-2">
             <Button type="reset" variant={"secondary"}>Cancel</Button>
-            <Button type="submit" className='bg-green-600'>Create</Button>
+            <Button type="submit" className='bg-green-600' disabled={createNotebook.isPending}>
+              {createNotebook.isPending && (
+                <Loader2 className='w-4 h-4 mr-2 animate-spin'/>
+              )}
+              Create
+            </Button>
           </div>
         </form>
       </DialogContent>
